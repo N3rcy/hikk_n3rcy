@@ -36,7 +36,7 @@ class YouTubeModule:
         # Connect to the Telegram servers
         await self.client.start()
 
-        async def on_unload(self):
+    async def on_unload(self):
         # Disconnect from the Telegram servers
         await self.client.disconnect()
 
