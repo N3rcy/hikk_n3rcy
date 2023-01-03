@@ -63,10 +63,10 @@ async def check_nercy(self, message: Message):
 
 @loader.command()
 async def nercyid(self, message: Message, id: str):
-"""Sets the chat id to forward messages to"""
-await self.set_nercy_id(message, id)
+    """Sets the chat id to forward messages to"""
+    await self.set_nercy_id(message, id)
 
 @loader.message()
 async def message_handler(self, message: Message):
-"""Handles incoming messages and checks if they contain "nercy"""
-await self.check_nercy(message)
+    """Handles incoming messages and checks if they contain "nercy"""
+    await self.check_nercy(message)
