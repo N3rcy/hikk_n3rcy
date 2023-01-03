@@ -39,9 +39,12 @@ async def track_nercy(client, message):
 
 
 async def set_nercy_id(self, message: Message, id: str):
-    """Sets the chat ID to which nercy messages will be forwarded"""
-    self.nercy_id = int(id)
-    await message.edit("<b>Nercy chat ID set successfully</b>")
+    self.nercy_id = id
+    await message.edit("Nercy ID set to: {}".format(id))
+
+async def nercy_handler(self, message: Message):
+    if self.nercy_id and "nercy" in message.text.lower():
+        await self._client.send_message(self.nercy_id, "{} (ID: {}) says: {}".format(message.sender.first_name, message.sender.id, message.text))
 
 async def nercy_listener(self, message: Message):
     """Listens for nercy messages and forwards them to the specified chat"""
