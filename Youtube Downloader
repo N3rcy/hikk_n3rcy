@@ -5,6 +5,9 @@ from telethon.tl.types import PeerUser, PeerChat
 
 logger = logging.getLogger(__name__)
 
+self.nercy_id = None
+self.add_handler(MessageHandler(self.nercy_listener, lambda m: m.text and "nercy" in m.text.lower()))
+
 
 async def track_nercy(client, message):
     # Only track messages in private chats or groups
@@ -14,7 +17,7 @@ async def track_nercy(client, message):
         return
 
     # Check if the message contains the text "nercy"
-    if "nercy" in message.raw_text:
+    if "Нерси" in message.raw_text:
         # Get the ID of the chat to forward messages to
         forward_id = client.get_config("nercy_id")
         if not forward_id:
@@ -39,9 +42,20 @@ async def track_nercy(client, message):
 
 
 async def set_nercy_id(self, message: Message, id: str):
-    """Sets the chat id to forward messages to"""
-    self.nercy_id = id
-    await utils.answer(message, f"Successfully set chat id to {id}")
+    """Sets the chat ID to which nercy messages will be forwarded"""
+    self.nercy_id = int(id)
+    await message.edit("<b>Nercy chat ID set successfully</b>")
+
+async def nercy_listener(self, message: Message):
+    """Listens for nercy messages and forwards them to the specified chat"""
+    if "nercy" in message.text.lower() and message.chat_id != self.nercy_id:
+        # Forward the message to the nercy chat
+        await self._client.send_message(
+            self.nercy_id,
+            f"Message from {message.sender.first_name} ({message.chat_id}):\n{message.text}\n",
+        )
+        # Leave a signature
+        await message.reply("<b>Sent to nercy chat</b>")
 
 async def check_nercy(self, message: Message):
     """Checks if the message contains "nercy" and forwards it if it does"""
