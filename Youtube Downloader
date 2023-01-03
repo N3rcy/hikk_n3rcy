@@ -5,12 +5,12 @@ import youtube_dl
 from telethon import events
 from telethon.tl.types import Message
 
-from hikka import (
-    LOADER,
-    LOGGER,
-    tgclient,
-    utils,
-)
+#from hikka import (
+#    LOADER,
+#    LOGGER,
+#    tgclient,
+#    utils,
+#)
 
 # Declare the module's scopes
 scopes = ['messages']
