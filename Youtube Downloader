@@ -1,70 +1,79 @@
 import os
-import logging
+import google.auth
+import googleapiclient.discovery
 
-import youtube_dl
-from telethon import events
 from telethon.tl.types import Message
 
-#from hikka import (
-#    LOADER,
-#    LOGGER,
-#    tgclient,
-#    utils,
-#)
+from .. import loader, utils
 
-# Declare the module's scopes
-scopes = ['messages']
 
-# Declare the module's dependencies
-dependencies = []
+@loader.tds
+class YouTubeUploaderMod(loader.Module):
+    """Uploads a video to YouTube"""
 
-# Initialize the module's logger
-#logger = LOGGER.module_logger(__name__)
-
-# Declare the module's main class
-@LOADER.tds
-class YouTubeModule:
+    strings = {
+        "name": "YouTube Uploader",
+        "uploading": "🚀 <b>Uploading...</b>",
+        "uploaded": "🎥 <b>Video uploaded successfully</b>",
+        "noargs": "🚫 <b>No video specified</b>",
+        "err": "🚫 <b>Upload error</b>",
+    }
 
     async def client_ready(self, client, db):
-        # Initialize the module's client and database objects
-        self._client = client
-        self._db = db
+        self.client = client
+        self.db = db
+        self.service = None
+        self.auth = None
+        self.channel_id = None
 
-        # Create a new TelegramClient
-        self.client = TelegramClient('session_name', self.api_id, self.api_hash, tgclient=client)
+    async def ytuploadcmd(self, message: Message):
+        """Uploads a video to YouTube"""
+        if not self.service:
+            self.auth, self.service = self._get_authenticated_services()
 
-        # Connect to the Telegram servers
-        await self.client.start()
+        if not self.channel_id:
+            channels_response = self.service.channels().list(
+                mine=True,
+                part="id"
+            ).execute()
+            channel = channels_response["items"][0]
+            self.channel_id = channel["id"]
 
-    #async def on_unload(self):
-        # Disconnect from the Telegram servers
-    #    await self.client.disconnect()
+        file = await self._get_media(message)
+        if not file:
+            return
 
-
-    # This function will be called when the userbot receives the "ytd" command
-    @LOADER.command(pattern='/ytd (.*)')
-    async def download_cmd(self, event):
-        # Get the URL of the video from the command
-        url = event.pattern_match.group(1)
-
-        # Download the video
-        file_name = self.download_video(url)
-
-        # Send the video to the chat
-        await self.client.send_file(event.chat_id, file_name, caption='Video downloaded!')
-
-        # Remove the video from the bot's directory
-        os.remove(file_name)
-
-    # Download a video from YouTube and return the file name
-    @staticmethod
-    def download_video(url):
-        # Use youtube_dl to download the video
-        ydl_opts = {
-            'outtmpl': '%(title)s.%(ext)s'
+        body = {
+            "snippet": {
+                "categoryId": "22",
+                "description": "",
+                "title": file.name
+            },
+            "status": {
+                "privacyStatus": "public"
+            }
         }
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        return ydl.prepare_filename(ydl.extract_info(url, download=False)).strip()
+        insert_request = self.service.videos().insert(
+            part=",".join(body.keys()),
+            body=body,
+            media_body=file
+        )
+        response = None
+        result = None
+        exception = None
+        try:
+            response = insert_request.execute()
+            result = response.get("id")
+        except Exception as e:
+            exception = e
 
-       
+        file.close()
+        if exception:
+            await utils.answer(message, self.strings("err"))
+        else:
+            video_url = f"https://www.youtube.com/watch?v={result}"
+            await utils.answer(
+                message,
+                self.strings("uploaded").format(video_url)
+            )
+
