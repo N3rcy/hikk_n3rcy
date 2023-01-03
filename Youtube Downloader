@@ -19,7 +19,7 @@ scopes = ['messages']
 dependencies = []
 
 # Initialize the module's logger
-logger = LOGGER.module_logger(__name__)
+#logger = LOGGER.module_logger(__name__)
 
 # Declare the module's main class
 @LOADER.tds
