@@ -1,86 +1,34 @@
-import logging
-
 from telethon import events
-from telethon.tl.types import PeerUser, PeerChat
+from telethon.tl.types import Channel, Chat
 
-logger = logging.getLogger(__name__)
+class NercyForwarder(loader.Module):
+    """Module that forwards messages containing the text 'nercy' to a specified chat"""
 
+    async def client_ready(self, client, db):
+        self.client = client
+        self.db = db
+        self.nercy_id = None
 
-async def track_nercy(client, message):
-    # Only track messages in private chats or groups
-    if isinstance(message.to_id, PeerUser):
-        return
-    if isinstance(message.to_id, PeerChat):
-        return
-
-    # Check if the message contains the text "nercy"
-    if "Нерси" in message.raw_text:
-        # Get the ID of the chat to forward messages to
-        forward_id = client.get_config("nercy_id")
-        if not forward_id:
-            logger.warning("No nercy chat ID specified, ignoring message")
+    @loader.command()
+    async def set_nercy_id(self, message: events.NewMessage.Event, id: str):
+        """Sets the chat id to forward nercy messages to"""
+        # Check if the id is valid
+        try:
+            entity = await self.client.get_entity(id)
+            if not isinstance(entity, (Channel, Chat)):
+                raise ValueError
+        except ValueError:
+            await message.edit("Invalid chat id")
             return
 
-        # Forward the message to the specified chat
-        await client.forward_messages(
-            entity=forward_id, messages=message, from_peer=message.chat_id
-        )
+        self.nercy_id = id
+        await message.edit(f"Nercy messages will now be forwarded to chat with id {id}")
 
-        # Leave a signature at the bottom of the forwarded message
-        sender = message.sender.first_name
-        if message.sender.username:
-            sender += f" (@{message.sender.username})"
-        signature = f"\n\nForwarded from {sender} ({message.sender.id})"
-        await client.send_message(
-            entity=forward_id,
-            message=signature,
-            reply_to=message.id,
-        )
+    @loader.event(events.NewMessage)
+    async def forward_nercy(self, event: events.NewMessage.Event):
+        if not self.nercy_id:
+            return
 
-
-async def set_nercy_id(self, message: Message, id: str):
-    self.nercy_id = id
-    await message.edit("Nercy ID set to: {}".format(id))
-
-async def nercy_handler(self, message: Message):
-    if self.nercy_id and "nercy" in message.text.lower():
-        await self._client.send_message(self.nercy_id, "{} (ID: {}) says: {}".format(message.sender.first_name, message.sender.id, message.text))
-
-async def nercy_listener(self, message: Message):
-    """Listens for nercy messages and forwards them to the specified chat"""
-    if "nercy" in message.text.lower() and message.chat_id != self.nercy_id:
-        # Forward the message to the nercy chat
-        await self._client.send_message(
-            self.nercy_id,
-            f"Message from {message.sender.first_name} ({message.chat_id}):\n{message.text}\n",
-        )
-        # Leave a signature
-        await message.reply("<b>Sent to nercy chat</b>")
-
-async def check_nercy(self, message: Message):
-    """Checks if the message contains "nercy" and forwards it if it does"""
-    if "nercy" in message.raw_text.lower():
-        if self.nercy_id:
-            # Forward the message
-            await self._client.forward_messages(
-                self.nercy_id,
-                message.chat_id,
-                message.id
-            )
-            # Leave a signature
-            await self._client.send_message(
-                self.nercy_id,
-                f"Message from {message.sender.first_name} ({message.sender.id})"
-            )
-        else:
-            await utils.answer(message, "Nercy id is not set. Use .nercyid to set it.")
-
-@loader.command()
-async def nercyid(self, message: Message, id: str):
-    """Sets the chat id to forward messages to"""
-    await self.set_nercy_id(message, id)
-
-@loader.message()
-async def message_handler(self, message: Message):
-    """Handles incoming messages and checks if they contain "nercy"""
-    await self.check_nercy(message)
+        if "nercy" in event.text.lower():
+            # Forward the message to the specified chat
+            await self.client.forward_messages(self.nercy_id, event.message, signature=f"\n\nFrom {event.sender.first_name} ({event.sender.id})")
