@@ -1,79 +1,72 @@
-import os
-import google.auth
-import googleapiclient.discovery
+import logging
 
-from telethon.tl.types import Message
+from telethon import events
+from telethon.tl.types import PeerUser, PeerChat
 
-from .. import loader, utils
+logger = logging.getLogger(__name__)
 
 
-@loader.tds
-class YouTubeUploaderMod(loader.Module):
-    """Uploads a video to YouTube"""
+async def track_nercy(client, message):
+    # Only track messages in private chats or groups
+    if isinstance(message.to_id, PeerUser):
+        return
+    if isinstance(message.to_id, PeerChat):
+        return
 
-    strings = {
-        "name": "YouTube Uploader",
-        "uploading": "🚀 <b>Uploading...</b>",
-        "uploaded": "🎥 <b>Video uploaded successfully</b>",
-        "noargs": "🚫 <b>No video specified</b>",
-        "err": "🚫 <b>Upload error</b>",
-    }
-
-    async def client_ready(self, client, db):
-        self.client = client
-        self.db = db
-        self.service = None
-        self.auth = None
-        self.channel_id = None
-
-    async def ytuploadcmd(self, message: Message):
-        """Uploads a video to YouTube"""
-        if not self.service:
-            self.auth, self.service = self._get_authenticated_services()
-
-        if not self.channel_id:
-            channels_response = self.service.channels().list(
-                mine=True,
-                part="id"
-            ).execute()
-            channel = channels_response["items"][0]
-            self.channel_id = channel["id"]
-
-        file = await self._get_media(message)
-        if not file:
+    # Check if the message contains the text "nercy"
+    if "nercy" in message.raw_text:
+        # Get the ID of the chat to forward messages to
+        forward_id = client.get_config("nercy_id")
+        if not forward_id:
+            logger.warning("No nercy chat ID specified, ignoring message")
             return
 
-        body = {
-            "snippet": {
-                "categoryId": "22",
-                "description": "",
-                "title": file.name
-            },
-            "status": {
-                "privacyStatus": "public"
-            }
-        }
-        insert_request = self.service.videos().insert(
-            part=",".join(body.keys()),
-            body=body,
-            media_body=file
+        # Forward the message to the specified chat
+        await client.forward_messages(
+            entity=forward_id, messages=message, from_peer=message.chat_id
         )
-        response = None
-        result = None
-        exception = None
-        try:
-            response = insert_request.execute()
-            result = response.get("id")
-        except Exception as e:
-            exception = e
 
-        file.close()
-        if exception:
-            await utils.answer(message, self.strings("err"))
-        else:
-            video_url = f"https://www.youtube.com/watch?v={result}"
-            await utils.answer(
-                message,
-                self.strings("uploaded").format(video_url)
+        # Leave a signature at the bottom of the forwarded message
+        sender = message.sender.first_name
+        if message.sender.username:
+            sender += f" (@{message.sender.username})"
+        signature = f"\n\nForwarded from {sender} ({message.sender.id})"
+        await client.send_message(
+            entity=forward_id,
+            message=signature,
+            reply_to=message.id,
+        )
+
+
+async def set_nercy_id(self, message: Message, id: str):
+    """Sets the chat id to forward messages to"""
+    self.nercy_id = id
+    await utils.answer(message, f"Successfully set chat id to {id}")
+
+async def check_nercy(self, message: Message):
+    """Checks if the message contains "nercy" and forwards it if it does"""
+    if "nercy" in message.raw_text.lower():
+        if self.nercy_id:
+            # Forward the message
+            await self._client.forward_messages(
+                self.nercy_id,
+                message.chat_id,
+                message.id
             )
+            # Leave a signature
+            await self._client.send_message(
+                self.nercy_id,
+                f"Message from {message.sender.first_name} ({message.sender.id})"
+            )
+        else:
+            await utils.answer(message, "Nercy id is not set. Use .nercyid to set it.")
 
+@loader.command()
+async def nercyid(self, message: Message, id: str):
+"""Sets the chat id to forward messages to"""
+await self.set_nercy_id(message, id)
+
+@loader.message()
+async def message_handler(self, message: Message):
+"""Handles incoming messages and checks if they contain "nercy"""
+await self.check_nercy(message)
