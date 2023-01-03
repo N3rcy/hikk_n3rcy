@@ -5,8 +5,6 @@ from telethon.tl.types import PeerUser, PeerChat
 
 logger = logging.getLogger(__name__)
 
-self.add_handler(MessageHandler(self.nercy_listener, lambda m: m.text and "nercy" in m.text.lower()))
-
 
 async def track_nercy(client, message):
     # Only track messages in private chats or groups
