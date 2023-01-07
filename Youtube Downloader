@@ -1,36 +1,27 @@
-from telethon import events
-from telethon.tl.types import Channel, Chat
+import logging
+
+from telethon.tl.types import Message
+
+from .. import loader, utils
+
+
+logger = logging.getLogger(__name__)
 
 
 @loader.tds
-class NercyForwarder(loader.Module):
-    """Module that forwards messages containing the text 'nercy' to a specified chat"""
+class TestMod(loader.Module):
+    """A simple test module for the hikka userbot"""
 
-    async def client_ready(self, client, db):
-        self.client = client
-        self.db = db
-        self.nercy_id = None
+    strings = {
+        "name": "Test",
+        "success_response": "the module works successfully!",
+    }
 
-    @loader.command()
-    async def set_nercy_id(self, message: events.NewMessage.Event, id: str):
-        """Sets the chat id to forward nercy messages to"""
-        # Check if the id is valid
-        try:
-            entity = await self.client.get_entity(id)
-            if not isinstance(entity, (Channel, Chat)):
-                raise ValueError
-        except ValueError:
-            await message.edit("Invalid chat id")
-            return
+    async def testcmd(self, message: Message):
+        """Send a message to confirm that the module is working"""
+        await message.edit(self.strings("success_response", message))
 
-        self.nercy_id = id
-        await message.edit(f"Nercy messages will now be forwarded to chat with id {id}")
-
-    @loader.event(events.NewMessage)
-    async def forward_nercy(self, event: events.NewMessage.Event):
-        if not self.nercy_id:
-            return
-
-        if "nercy" in event.text.lower():
-            # Forward the message to the specified chat
-            await self.client.forward_messages(self.nercy_id, event.message, signature=f"\n\nFrom {event.sender.first_name} ({event.sender.id})")
+@client.on(events.NewMessage(pattern=r"\.test"))
+async def test_handler(event):
+    await event.respond("Running test command...")
+    await test_mod.testcmd(event.message)
