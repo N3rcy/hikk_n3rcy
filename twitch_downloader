@@ -1,72 +1,47 @@
 import logging
-import re
+import json
 import requests
-
-from telethon.tl.types import Message
 
 from .. import loader, utils
 
 logger = logging.getLogger(__name__)
 
-@loader.tds
-class TwitchMod(loader.Module):
-    """Downloads recordings (replays) of streams from Twitch"""
-
-    strings = {
-        "name": "Twitch",
-        "downloading": "📥 <b>Downloading {}</b>",
-        "download_complete": "💾 <b>Download complete:</b> <code>{}</code>",
-        "invalid_url": "🚫 <b>Invalid Twitch URL</b>",
-        "error": "🚫 <b>An error occurred:</b> <code>{}</code>",
-    }
-
-    async def twitchcmd(self, message: Message):
-        """Usage: .twitch https://www.twitch.tv/videos/video_id"""
-        args = utils.get_args_raw(message)
-        if not args:
-            await utils.answer(message, self.strings("invalid_url"))
+class TwitchDownloader(loader.Module):
+    """Module for downloading Twitch stream replays"""
+    async def twitchcmd(self, message):
+        """
+        .twitch https://www.twitch.tv/videos/1694800073 - Downloads the replay of the specified Twitch stream
+        """
+        # Get the URL of the stream to download
+        stream_url = utils.get_args_raw(message)
+        if not stream_url:
+            await utils.answer(message, "🚫 Please provide a URL for the stream to download")
             return
-
-        video_id = re.search(r"/videos/(\d+)", args)
-        if not video_id:
-            await utils.answer(message, self.strings("invalid_url"))
+        
+        # Extract the video ID from the URL
+        video_id = stream_url.split("/")[-1]
+        
+        # Make a request to the Twitch API to get the stream information
+        api_url = f"https://api.twitch.tv/helix/videos?id={video_id}"
+        headers = {"Client-ID": "YOUR_CLIENT_ID_HERE"}  # Replace with your own Client ID
+        response = requests.get(api_url, headers=headers)
+        
+        # Check if the request was successful
+        if response.status_code != 200:
+            await utils.answer(message, "🚫 Could not get stream information from Twitch API")
             return
-
-        video_id = video_id.group(1)
-        video_url = f"https://www.twitch.tv/videos/{video_id}"
-
-        await utils.answer(message, self.strings("downloading").format(video_url))
-
-        try:
-            response = requests.get(f"https://api.twitch.tv/kraken/videos/{video_id}", headers={
-                "Client-ID": self.get_config("client_id")
-            })
-            response.raise_for_status()
-            data = response.json()
-
-            file_name = data["title"]
-            file_url = data["url"]
-
-            response = requests.get(file_url, stream=True)
-            response.raise_for_status()
-
-            await message.client.send_file(
-                message.peer_id,
-                response.raw,
-                filename=file_name,
-                progress_callback=lambda d, t: asyncio.get_event_loop().create_task(
-                    self.update_progress(d, t, message, file_name)
-                )
-            )
-        except Exception as e:
-            await utils.answer(message, self.strings("error").format(str(e)))
-        else:
-            await utils.answer(message, self.strings("download_complete").format(file_name))
-
-    async def update_progress(self, current, total, message, file_name):
-        """Updates the progress of the download in a message"""
-        if not message.photo:
-            await message.edit(
-                self.strings("downloading").format(file_name) +
-                f"\n{current} of {total}"
-            )
+        
+        # Parse the response from the API
+        data = json.loads(response.text)
+        if not data["data"]:
+            await utils.answer(message, "🚫 Could not find a stream with the specified ID")
+            return
+        
+        # Get the URL of the video file to download
+        video_url = data["data"][0]["url"]
+        
+        # Download the video file
+        video = requests.get(video_url)
+        
+        # Send the video file to the user
+        await message.client.send_file(message.to_id, video.content)
