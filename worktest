@@ -6,16 +6,11 @@ from .. import loader, utils
 
 logger = logging.getLogger(__name__)
 
+
 @loader.tds
 class BotStatusMod(loader.Module):
-    """Module checks the performance of the bot"""
+    """Module to change the message to "bot - running" on command "bot"."""
 
-    strings = {
-        "name": "Bot Status",
-        "bot_running": "🤖 <b>Bot is running</b>",
-    }
-
-@loader.command(name="bot")
-async def bot_command(message: Message):
-    """changes the message to "bot - running"""
-    await message.edit("bot - running")
+    async def botcmd(self, message: Message):
+        """Change the message to "bot - running"."""
+        await utils.answer(message, "bot - running")
