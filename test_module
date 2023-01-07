@@ -1,5 +1,6 @@
 import logging
 
+from telethon import events
 from telethon.tl.types import Message
 
 from .. import loader, utils
@@ -9,19 +10,19 @@ logger = logging.getLogger(__name__)
 
 
 @loader.tds
-class TestMod(loader.Module):
-    """A simple test module for the hikka userbot"""
+class NercyMod(loader.Module):
+    """A simple module that responds to the ".nercy" command"""
 
     strings = {
-        "name": "Test",
-        "success_response": "the module works successfully!",
+        "name": "Nercy",
+        "working": "Nercy bot - working",
     }
 
-    async def testcmd(self, message: Message):
-        """Send a message to confirm that the module is working"""
-        await message.edit(self.strings("success_response", message))
+    async def client_ready(self, client, db):
+        # Add event listener for the ".nercy" command
+        client.add_event_handler(self.nercy_handler, events.NewMessage(pattern=r"\.nercy"))
 
-#@client.on(events.NewMessage(pattern=r"\.test"))
-#async def test_handler(event):
-#    await event.respond("Running test command...")
-#    await test_mod.testcmd(event.message)
+    async def nercy_handler(self, event: Message):
+        """Handle the ".nercy" command"""
+        # Change the message to "Nercy bot - working"
+        await event.edit(self.strings("working", event))
