@@ -10,12 +10,12 @@ logger = logging.getLogger(__name__)
 class NercyMod(loader.Module):
     """Module for tracking the word "nercy" and forwarding it to a selected chat"""
 
-    strings = {
-        "name": "Nercy",
-        "forward_success": "💾 <b>Successfully set chat for forwarding \"nercy\" messages to chat ID </b><code>{}</code>.</b>",
-        #"forward_invalid_id": "🚫 <b>Invalid chat ID. Please provide a valid chat ID to forward "nercy" messages to.</b>",
-        "forward_unset": "🚫 <b>Forwarding "nercy" messages has been unset.</b>"
-    }
+#    strings = {
+#        "name": "Nercy",
+#        "forward_success": "💾 <b>Successfully set chat for forwarding \"nercy\" messages to chat ID </b><code>{}</code>.</b>",
+#        "forward_invalid_id": "🚫 <b>Invalid chat ID. Please provide a valid chat ID to forward "nercy" messages to.</b>",
+#        "forward_unset": "🚫 <b>Forwarding "nercy" messages has been unset.</b>"
+#    }
 
     def __init__(self):
         self.config = {"FORWARD_CHAT_ID": None}
