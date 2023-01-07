@@ -5,7 +5,7 @@ from telethon.tl.types import Message
 from .. import loader, utils
 
 logger = logging.getLogger(__name__)
-
+x = "bot"
 
 @loader.tds
 class BotStatusMod(loader.Module):
@@ -18,8 +18,8 @@ class BotStatusMod(loader.Module):
 
     async def client_ready(self, client, db):
         self._running = True
-
-    @loader.command(name="bot")
+  
+    @loader.command(name= x)
     async def bot_cmd(self, message: Message):
         """Test working bot"""
         await message.edit(self.strings("bot_running", message))
