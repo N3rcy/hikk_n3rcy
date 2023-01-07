@@ -21,7 +21,7 @@ class TestMod(loader.Module):
         """Send a message to confirm that the module is working"""
         await message.edit(self.strings("success_response", message))
 
-@client.on(events.NewMessage(pattern=r"\.test"))
-async def test_handler(event):
-    await event.respond("Running test command...")
-    await test_mod.testcmd(event.message)
+#@client.on(events.NewMessage(pattern=r"\.test"))
+#async def test_handler(event):
+#    await event.respond("Running test command...")
+#    await test_mod.testcmd(event.message)
