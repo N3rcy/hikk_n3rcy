@@ -9,12 +9,11 @@ logger = logging.getLogger(__name__)
 
 @loader.tds
 class BotStatusMod(loader.Module):
-    """Module that changes the message to "Bot is running" at the command "(prefix)bot"""
+    """Module checks the performance of the bot"""
 
     strings = {
         "name": "Bot Status",
         "bot_running": "🤖 <b>Bot is running</b>",
-        "bot_stopped": "🛑 <b>Bot is stopped</b>",
     }
 
     async def client_ready(self, client, db):
@@ -22,10 +21,5 @@ class BotStatusMod(loader.Module):
 
     @loader.command(name="bot")
     async def bot_cmd(self, message: Message):
-        """Toggles the bot status"""
-        if self._running:
-            self._running = False
-            await message.edit(self.strings("bot_stopped", message))
-        else:
-            self._running = True
-            await message.edit(self.strings("bot_running", message))
+        """Test working bot"""
+        await message.edit(self.strings("bot_running", message))
