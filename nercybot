@@ -14,15 +14,15 @@ class NercyMod(loader.Module):
     """A simple module that responds to the ".nercy" command"""
 
     strings = {
-        "name": "Nercy",
-        "working": "Nercy bot - working",
+        "name": "Work",
+        "working": "Bot - working",
     }
 
     async def client_ready(self, client, db):
-        # Add event listener for the ".nercy" command
-        client.add_event_handler(self.nercy_handler, events.NewMessage(pattern=r"\.nercy"))
+        # Add event listener for the ".test" command
+        client.add_event_handler(self.nercy_handler, events.NewMessage(pattern=r"\.test"))
 
     async def nercy_handler(self, event: Message):
-        """Handle the ".nercy" command"""
-        # Change the message to "Nercy bot - working"
+        """Handle the ".test" command"""
+        # Change the message to "Bot - working"
         await event.edit(self.strings("working", event))
