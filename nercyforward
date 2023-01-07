@@ -1,0 +1,48 @@
+import logging
+
+from telethon import events
+
+from .. import loader, utils
+
+logger = logging.getLogger(__name__)
+
+@loader.tds
+class NercyMod(loader.Module):
+    """Module for tracking the word "nercy" and forwarding it to a selected chat"""
+
+    strings = {
+        "name": "Nercy",
+        "forward_success": "💾 <b>Successfully set chat for forwarding "nercy" messages to chat ID </b><code>{}</code>.</b>",
+        "forward_invalid_id": "🚫 <b>Invalid chat ID. Please provide a valid chat ID to forward "nercy" messages to.</b>",
+        "forward_unset": "🚫 <b>Forwarding "nercy" messages has been unset.</b>"
+    }
+
+    def __init__(self):
+        self.config = {"FORWARD_CHAT_ID": None}
+        super().__init__()
+
+    async def client_ready(self, client, db):
+        self.client = client
+        self.db = db
+
+    @loader.owner
+    async def nercyforwardidcmd(self, message):
+        """Set the chat ID to forward "nercy" messages to"""
+        try:
+            forward_chat_id = int(utils.get_args_raw(message))
+            self.config["FORWARD_CHAT_ID"] = forward_chat_id
+            await message.edit(self.strings("forward_success", str(forward_chat_id)))
+        except ValueError:
+            await message.edit(self.strings("forward_invalid_id"))
+
+    @loader.owner
+    async def nercyforwardunsetcmd(self, message):
+        """Unset the chat ID to forward "nercy" messages to"""
+        self.config["FORWARD_CHAT_ID"] = None
+        await message.edit(self.strings("forward_unset"))
+    
+    @loader.group_admin
+    @events.register(events.NewMessage(outgoing=False, pattern="nercy"))
+    async def nercy_handler(self, event):
+        if self.config["FORWARD_CHAT_ID"]:
+            await event.client.send_message(self.config["FORWARD_CHAT_ID"], "nercy")
