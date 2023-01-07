@@ -1,28 +1,31 @@
 import logging
 
-from telethon import events
 from telethon.tl.types import Message
 
 from .. import loader, utils
-
 
 logger = logging.getLogger(__name__)
 
 
 @loader.tds
-class NercyMod(loader.Module):
-    """A simple module that responds to the ".nercy" command"""
+class BotStatusMod(loader.Module):
+    """Module that changes the message to "Bot is running" at the command "(prefix)bot"""
 
     strings = {
-        "name": "Work",
-        "working": "Bot - working",
+        "name": "Bot Status",
+        "bot_running": "🤖 <b>Bot is running</b>",
+        "bot_stopped": "🛑 <b>Bot is stopped</b>",
     }
 
     async def client_ready(self, client, db):
-        # Add event listener for the ".test" command
-        client.add_event_handler(self.nercy_handler, events.NewMessage(pattern=r"\.test"))
+        self._running = True
 
-    async def nercy_handler(self, event: Message):
-        """Handle the ".test" command"""
-        # Change the message to "Bot - working"
-        await event.edit(self.strings("working", event))
+    @loader.command(name="bot")
+    async def bot_cmd(self, message: Message):
+        """Toggles the bot status"""
+        if self._running:
+            self._running = False
+            await message.edit(self.strings("bot_stopped", message))
+        else:
+            self._running = True
+            await message.edit(self.strings("bot_running", message))
