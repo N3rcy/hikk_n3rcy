@@ -3,7 +3,7 @@ import logging
 from telethon import events
 from telethon.errors import ChatWriteForbiddenError
 from telethon.tl.functions.messages import GetHistoryRequest, GetBotCallbackAnswerRequest
-from telethon.tl.types import Message, Channel, BotInlineMessage
+#from telethon.tl.types import Message, Channel, BotInlineMessage
 
 from .. import loader, utils
 
