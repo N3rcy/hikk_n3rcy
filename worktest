@@ -24,4 +24,4 @@ class BotStatusMod(loader.Module):
     
     async def botcmd(self, message: Message):
         """Check bot performance"""
-        await utils.answer(message, "**🤖 Bot is running**")
+        await utils.answer(message, "<b>🤖 Bot is running.</b>.")
