@@ -1,0 +1,76 @@
+import logging
+
+from telethon import events
+from telethon.errors import ChatWriteForbiddenError
+from telethon.tl.functions.messages import GetHistoryRequest, GetBotCallbackAnswerRequest
+from telethon.tl.types import Message, Channel, BotInlineMessage
+
+from .. import loader, utils
+
+
+logger = logging.getLogger(__name__)
+
+
+@loader.tds
+class NewsMod(loader.Module):
+    """A module that allows you to specify news channels using the ".newsid" command and retrieve the latest post from those channels using the ".news" command"""
+
+    strings = {
+        "name": "News",
+        "invalid_channel": "🚫 <b>Invalid channel ID.</b>",
+        "specify_channels": "🚫 <b>Specify news channel IDs using the .newsid command.</b>",
+        "no_post_found": "😔 <b>No post found in the specified channels.</b>",
+    }
+
+    async def client_ready(self, client, db):
+        # Add event listeners for the ".newsid" and ".news" commands
+        client.add_event_handler(self.newsid_handler, events.NewMessage(pattern=r"\.newsid"))
+        client.add_event_handler(self.news_handler, events.NewMessage(pattern=r"\.news"))
+
+        # Load the list of news channel IDs from the database
+    async def newsid_handler(self, event: events.NewMessage.Event) -> None:
+        """Event handler for the ".newsid" command"""
+        # Get the list of channel IDs from the command arguments
+        channel_ids = event.raw_text.split(maxsplit=1)[1].split(",")
+
+        # Validate the channel IDs
+        for channel_id in channel_ids:
+            try:
+                channel_id = int(channel_id)
+            except ValueError:
+                await event.edit(self.strings("invalid_channel", event))
+                return
+
+            # Make sure the channel exists and is a supergroup or channel
+            channel = await event.client.get_entity(channel_id)
+            if not isinstance(channel, (Channel, Supergroup)):
+                await event.edit(self.strings("invalid_channel", event))
+                return
+
+        # Save the list of channel IDs to the database
+        self.config["channel_ids"] = channel_ids
+        self.save_config()
+        await event.edit("💾 <b>News channel IDs saved successfully.</b>")
+
+    async def news_handler(self, event: events.NewMessage.Event) -> None:
+        """Event handler for the ".news" command"""
+        # Get the list of news channel IDs from the database
+        channel_ids = self.config.get("channel_ids", [])
+        if not channel_ids:
+            await event.edit(self.strings("specify_channels", event))
+            return
+
+        # Find the latest post from the news channels
+        latest_post = None
+        for channel_id in channel_ids:
+            async for message in event.client.iter_messages(channel_id):
+                if latest_post is None or message.date > latest_post.date:
+                    latest_post = message
+                break
+
+        if latest_post is None:
+            await event.edit(self.strings("no_posts", event))
+            return
+
+        # Send the text of the latest post
+        await event.edit(latest_post.message)
