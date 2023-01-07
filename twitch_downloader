@@ -1,70 +1,72 @@
 import logging
-import os
-
+import re
 import requests
-from telethon import events
+
+from telethon.tl.types import Message
 
 from .. import loader, utils
 
 logger = logging.getLogger(__name__)
 
-
 @loader.tds
 class TwitchMod(loader.Module):
-    """Downloads streams from Twitch"""
-    strings = {"name": "Twitch", "no_url": "🚫 Please provide a valid Twitch URL"}
+    """Downloads recordings (replays) of streams from Twitch"""
 
-    @loader.unrestricted
-    async def twitchcmd(self, message: events.NewMessage.Event) -> None:
-        """Usage: .twitch <url>"""
-        args = utils.get_args(message)
+    strings = {
+        "name": "Twitch",
+        "downloading": "📥 <b>Downloading {}</b>",
+        "download_complete": "💾 <b>Download complete:</b> <code>{}</code>",
+        "invalid_url": "🚫 <b>Invalid Twitch URL</b>",
+        "error": "🚫 <b>An error occurred:</b> <code>{}</code>",
+    }
+
+    async def twitchcmd(self, message: Message):
+        """Usage: .twitch https://www.twitch.tv/videos/video_id"""
+        args = utils.get_args_raw(message)
         if not args:
-            await utils.answer(message, self.strings("no_url"))
+            await utils.answer(message, self.strings("invalid_url"))
             return
+
+        video_id = re.search(r"/videos/(\d+)", args)
+        if not video_id:
+            await utils.answer(message, self.strings("invalid_url"))
+            return
+
+        video_id = video_id.group(1)
+        video_url = f"https://www.twitch.tv/videos/{video_id}"
+
+        await utils.answer(message, self.strings("downloading").format(video_url))
 
         try:
-            stream_url = await self._resolve_url(args[0])
-        except ValueError:
-            await utils.answer(message, self.strings("no_url"))
-            return
+            response = requests.get(f"https://api.twitch.tv/kraken/videos/{video_id}", headers={
+                "Client-ID": self.get_config("client_id")
+            })
+            response.raise_for_status()
+            data = response.json()
 
-        response = requests.get(stream_url, stream=True)
-        file_size = int(response.headers.get("Content-Length", 0))
-        filename = stream_url.split("/")[-1]
+            file_name = data["title"]
+            file_url = data["url"]
 
-        if response.status_code == 200:
-            await message.edit("📥 Downloading...")
-            with open(filename, "wb") as f:
-                for chunk in response.iter_content(1024):
-                    f.write(chunk)
+            response = requests.get(file_url, stream=True)
+            response.raise_for_status()
 
-            await message.edit("📤 Uploading...")
             await message.client.send_file(
-                message.to_id,
-                filename,
+                message.peer_id,
+                response.raw,
+                filename=file_name,
                 progress_callback=lambda d, t: asyncio.get_event_loop().create_task(
-                    self._progress(d, t, message, file_size)
-                ),
+                    self.update_progress(d, t, message, file_name)
+                )
             )
-            os.remove(filename)
+        except Exception as e:
+            await utils.answer(message, self.strings("error").format(str(e)))
         else:
-            await utils.answer(message, "🚫 Unable to download stream")
+            await utils.answer(message, self.strings("download_complete").format(file_name))
 
-    async def _resolve_url(self, url: str) -> str:
-        """Resolves the URL of the stream"""
-        if not url.startswith("https://www.twitch.tv/"):
-            raise ValueError
-
-        response = requests.get(url)
-        if response.status_code != 200:
-            raise ValueError
-
-        return response.url.replace("https", "http")
-
-    async def _progress(self, current, total, event, file_size):
-        """Shows progress of download as a percentage"""
-        logger.info(f"Downloaded {current} of {total}")
-        if round(current / total * 100) % 10 == 0 or current == total:
-            percentage = current * 100 / file_size
-            await event.edit(f"📤 Uploading... {round(percentage)}%")
-
+    async def update_progress(self, current, total, message, file_name):
+        """Updates the progress of the download in a message"""
+        if not message.photo:
+            await message.edit(
+                self.strings("downloading").format(file_name) +
+                f"\n{current} of {total}"
+            )
