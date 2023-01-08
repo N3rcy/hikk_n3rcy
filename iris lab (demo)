@@ -2,62 +2,51 @@ import logging
 import asyncio
 
 from telethon import events
-from telethon.tl.types import Channel
 
 from .. import loader, utils
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(name)
 
 @loader.tds
 class IrisLabMod(loader.Module):
-    """Module for Iris lab"""
+    """Module for Iris Lab"""
 
     strings = {
         "name": "Iris Lab",
-        "autoinfect_on": "🟢 <b>Autoinfection mode is now ON</b>",
-        "autoinfect_off": "🔴 <b>Autoinfection mode is now OFF</b>",
-        "autoinfect_send": "🟢 <b>Sending infection message</b>",
+        "autoinfect_on": "🟢 <b>Autoinfection mode enabled</b>",
+        "autoinfect_off": "🔴 <b>Autoinfection mode disabled</b>",
+        "autoinfect_invalid_sign": "🚫 <b>Invalid sign specified. Choose +, -, or =</b>",
+        "autoinfect_message": "🦠 <b>Infect</b> {} @iris_black_bot",
     }
 
-    async def client_ready(self, client, db):
-        self._client = client
-        self._db = db
-        self._autoinfect_mode = False
-        self._autoinfect_symbol = None
-        self._autoinfect_task = asyncio.create_task(self.autoinfect_loop())
+    @loader.command(name="autoinfecton", group="iris")
+    async def autoinfectoncmd(self, message: Message):
+        """Enables autoinfection mode"""
+        args = utils.get_args_raw(message)
 
-    async def autoinfect_loop(self):
+        if not args:
+            await utils.answer(message, self.strings("autoinfect_invalid_sign"))
+            return
+
+        sign = args[0]
+        if sign not in ["+", "-", "="]:
+            await utils.answer(message, self.strings("autoinfect_invalid_sign"))
+            return
+
+        self._autoinfect_task = asyncio.ensure_future(self.autoinfect_loop(sign))
+        await utils.answer(message, self.strings("autoinfect_on"))
+
+    async def autoinfect_loop(self, sign):
         while True:
-            if not self._autoinfect_mode:
-                await asyncio.sleep(60)
-                continue
-            logger.info(self.strings("autoinfect_send"))
-            # send infection message to bot
+            await asyncio.sleep(3600)
             await self._client.send_message(
-                "iris_black_bot", f"Заразить {self._autoinfect_symbol}"
+                "@iris_black_bot", self.strings("autoinfect_message").format(sign)
             )
             await asyncio.sleep(10)
 
-    async def autoinfectcmd(self, message: events.NewMessage.Event):
-        """Turns on/off autoinfection mode"""
-        if self._autoinfect_mode:
-            self._autoinfect_mode = False
-            self._autoinfect_symbol = None
-            await utils.answer(message, self.strings("autoinfect_off"))
-        else:
-            args = utils.get_args_raw(message)
-            if not args:
-                await utils.answer(message, "🚫 <b>Please specify a symbol for the infection message (e.g. +, -, =)</b>")
-                return
-            self._autoinfect_mode = True
-            self._autoinfect_symbol = args
-            await utils.answer(message, self.strings("autoinfect_on"))
+    @loader.command(name="autoinfectoff", group="iris")
+    async def autoinfectoffcmd(self, message: Message):
+        """Disables autoinfection mode"""
+        self._autoinfect_task.cancel()
+        await utils.answer(message, self.strings("autoinfect_off"))
 
-    async def autoinfectoffcmd(self, message: events.NewMessage.Event):
-        """Turns off autoinfection mode"""
-        if self._autoinfect_mode:
-            self._autoinfect_mode = False
-            self._autoinfect_symbol = None
-            await utils.answer(message, self.strings("autoinfect_off"))
-        else:
-            await utils.answer(message, "🚫 <b>Autoinfection mode is already OFF</b>")
