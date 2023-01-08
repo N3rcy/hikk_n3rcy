@@ -1,52 +1,46 @@
-import logging
-import asyncio
-
-from telethon import events
-
+from telethon.tl.types import Message
 from .. import loader, utils
 
-logger = logging.getLogger(__name__)
+import asyncio
 
 @loader.tds
 class IrisLabMod(loader.Module):
-    """Module for Iris Lab"""
+    """Iris lab module with autoinfection mode"""
 
     strings = {
         "name": "Iris Lab",
-        "autoinfect_on": "🟢 <b>Autoinfection mode enabled</b>",
-        "autoinfect_off": "🔴 <b>Autoinfection mode disabled</b>",
-        "autoinfect_invalid_sign": "🚫 <b>Invalid sign specified. Choose +, -, or =</b>",
-        "autoinfect_message": "🦠 <b>Infect</b> {} @iris_black_bot",
+        "autoinfect_on": "🟢 Autoinfection mode turned on. Sign: {}",
+        "autoinfect_off": "🔴 Autoinfection mode turned off.",
+        "autoinfect_message": "@iris_black_bot infect {}",
     }
 
-    @loader.command(name="autoinfecton", group="iris")
+    async def client_ready(self, client):
+        self._db = client.session.get_repo(
+            tgdata.HelperRepo, special_keys=("helper.session",)
+        )
+        self._client = client
+        self._autoinfect = False
+        self._sign = "+"
+
     async def autoinfectoncmd(self, message: Message):
-        """Enables autoinfection mode"""
+        """<sign> - Turn on autoinfection mode with specified sign (+, -, =)"""
         args = utils.get_args_raw(message)
-
         if not args:
-            await utils.answer(message, self.strings("autoinfect_invalid_sign"))
-            return
+            await utils.answer(message, self.strings("autoinfect_on").format(self._sign))
+        else:
+            self._sign = args
+            await utils.answer(message, self.strings("autoinfect_on").format(self._sign))
+        self._autoinfect = True
+        await self.autoinfect()
 
-        sign = args[0]
-        if sign not in ["+", "-", "="]:
-            await utils.answer(message, self.strings("autoinfect_invalid_sign"))
-            return
-
-        self._autoinfect_task = asyncio.ensure_future(self.autoinfect_loop(sign))
-        await utils.answer(message, self.strings("autoinfect_on"))
-
-    async def autoinfect_loop(self, sign):
-        while True:
-            await asyncio.sleep(3600)
-            await self._client.send_message(
-                "@iris_black_bot", self.strings("autoinfect_message").format(sign)
-            )
-            await asyncio.sleep(10)
-
-    @loader.command(name="autoinfectoff", group="iris")
     async def autoinfectoffcmd(self, message: Message):
-        """Disables autoinfection mode"""
-        self._autoinfect_task.cancel()
+        """Turn off autoinfection mode"""
+        self._autoinfect = False
         await utils.answer(message, self.strings("autoinfect_off"))
 
+    async def autoinfect(self):
+        while self._autoinfect:
+            await self._client.send_message(
+                "iris_black_bot", self.strings("autoinfect_message").format(self._sign)
+            )
+            await asyncio.sleep(36000) # sleep for 1 hour
