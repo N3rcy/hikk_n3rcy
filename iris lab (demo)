@@ -1,0 +1,48 @@
+import logging
+import asyncio
+from telethon.tl.types import Message
+from .. import loader, utils
+
+logger = logging.getLogger(__name__)
+
+@loader.tds
+class IrisLabMod(loader.Module):
+    """Module for Iris lab with autoinfection mode"""
+    strings = {
+        "name": "Iris lab",
+        "autoinfect_on": "🟢 <b>Autoinfection mode turned on with symbol {}</b>",
+        "autoinfect_off": "🔴 <b>Autoinfection mode turned off</b>",
+        "autoinfect_message": "Заразить {}"
+    }
+    
+    def __init__(self):
+        self._autoinfect_task = None
+        self._autoinfect_symbol = None
+
+    async def autoinfectoncmd(self, message: Message, symbol: str):
+        """Turn on autoinfection mode with specified symbol"""
+        if not symbol in ["+", "-", "="]:
+            await utils.answer(message, "🚫 <b>Invalid symbol. Use +, -, or =</b>")
+            return
+        
+        if self._autoinfect_task:
+            await self._autoinfect_task.cancel()
+        
+        self._autoinfect_symbol = symbol
+        self._autoinfect_task = asyncio.create_task(self._autoinfect_loop())
+        await utils.answer(message, self.strings("autoinfect_on").format(symbol))
+    
+    async def _autoinfect_loop(self):
+        while True:
+            await asyncio.sleep(3610) # sleep for 1 hour and 10 seconds
+            await self._client.send_message("@iris_black_bot", self.strings("autoinfect_message").format(self._autoinfect_symbol))
+    
+    async def autoinfectoffcmd(self, message: Message):
+        """Turn off autoinfection mode"""
+        if self._autoinfect_task:
+            await self._autoinfect_task.cancel()
+            self._autoinfect_task = None
+            self._autoinfect_symbol = None
+            await utils.answer(message, self.strings("autoinfect_off"))
+        else:
+            await utils.answer(message, "🚫 <b>Autoinfection mode is already turned off</b>")
